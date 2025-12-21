@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Eagle Eye Test</title>
+    <link rel="stylesheet" href="style.css">
+     <link rel="icon" type="image/x-icon" href="../LOGO.jpg"> 
+</head>
+<body>
+    <header  class="site-header">
+        <img src="../LOGO.jpg" alt="Eagle Eye logo" class="site-logo" />
+    <div class="site-title">
+        <h1>Eagle Eye Test</h1>
+        <p>Real-Time Threat Detection and Monitoring</p> 
+    </div>
+    <div class="header-actions">
+        <button id="notification-bell" class="icon-btn" title="Notifications">🔔</button>
+        <a id="login-link" href="/login.html">Login</a>
+    </div>
+    </header>
+
+    <main>
+        <section id="alerts-root">
+            <div class="controls">
+                <div class="tabs" role="tablist" aria-label="Alert categories">
+                    <button class="tab active" data-type="all">All</button>
+                    <button class="tab" data-type="weapon">Weapon</button>
+                    <button class="tab" data-type="smoke">Smoke</button>
+                    <button class="tab" data-type="fight">Fight</button>
+                    <button class="tab" data-type="entry">Entry</button>
+                </div>
+                <div class="actions">
+                    <input id="search" placeholder="Search alerts..." />
+                    <button id="refresh">Refresh</button>
+                </div>
+            </div>
+
+            <div id="alerts-list" aria-live="polite"></div>
+        </section>
+
+        <section id="player-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-content">
+                <header class="modal-header">
+                    <h2 id="modal-title">Alert Clip</h2>
+                    <button id="close-modal" class="icon-btn">✕</button>
+                </header>
+
+                <div class="modal-body">
+                    <video id="clip-player" controls preload="metadata" width="720" crossorigin="anonymous">
+                        <!-- src is set dynamically -->
+                    </video>
+
+                    <div class="modal-meta">
+                        <div id="modal-alert-info"></div>
+                        <div class="modal-actions">
+                            <button id="save-clip" class="primary">Save Clip</button>
+                            <button id="dismiss-clip" class="warn">Dismiss Alert</button>
+                            <button id="feedback-open">Send Feedback</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="feedback-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+            <div class="modal-content small">
+                <header class="modal-header">
+                    <h3 id="feedback-title">Send Feedback</h3>
+                    <button id="close-feedback" class="icon-btn">✕</button>
+                </header>
+                <div class="modal-body">
+                    <textarea id="feedback-text" rows="6" placeholder="Tell the bot what's wrong or confirm this is real..."></textarea>
+                    <div class="modal-actions">
+                        <button id="send-feedback" class="primary">Send to Chatbot</button>
+                        <button id="cancel-feedback">Cancel</button>
+                    </div>
+                    <div id="feedback-status" class="muted"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
