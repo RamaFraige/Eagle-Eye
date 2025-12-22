@@ -10,7 +10,7 @@ Eagle Eye is a full-stack web application for real-time threat detection in surv
 - **Data Storage**: SQLite alerts table with fields: id, type, title, message, time, clipUrl, status
 
 ## Key Components
-- `app.py`: Main Flask application with API endpoints and dummy AI simulation
+- `app.py`: Main Flask application with API endpoints, database, email support, and Twilio SMS integration
 - `FrontEnd/index.html`: Dashboard UI with alert tabs, search, and modals
 - `FrontEnd/script.js`: Client-side logic for alerts management, video playback, and user interactions
 - `FrontEnd/style.css`: Responsive styling with color-coded alert types
@@ -18,20 +18,26 @@ Eagle Eye is a full-stack web application for real-time threat detection in surv
 
 ## Critical Workflows
 ### Starting the Application
-Run `python app.py` from project root. Opens at `http://127.0.0.1:5000`. Initializes database with sample alerts.
+Run `py app.py` from project root. Opens login page at `http://127.0.0.1:5000`. After login, redirects to dashboard at `/dashboard`.
+
+### User Authentication
+- Login required with username, email, phone, password
+- Stored in localStorage as JSON object
+- Phone number used for SMS notifications (when Twilio integrated)
 
 ### Alert Management
 - Alerts polled via `/api/alerts` (GET)
 - New detections checked via `/api/check_detection` (GET) - returns random simulated alerts
 - Dismiss alerts via `/api/dismiss_alert` (POST) with `alert_id`
-- Feedback submitted via `/api/feedback` (POST) with `alertId` and `message`
+- Feedback submitted via `/api/feedback` (POST) - sends email to `eagleeye.suppteam@gmail.com` with user info, alert details, and message
 
 ### Frontend Interactions
 - Filter alerts by type (all, weapon, smoke, fight, entry) using tab buttons
 - Search alerts by title, message, or type
-- View video clips in modal player
-- Download/save clips to local Downloads folder
+- View alert details in modal (no video in demo)
+- Save clip: Shows demo message (real clips require AI integration)
 - Dismiss alerts (stored in localStorage as `eagle_dismissed_alerts`)
+- Send to support: Opens modal, sends email to support team
 
 ## Project-Specific Conventions
 - **Alert Types**: `weapon`, `fight`, `smoke`, `entry` - use these consistently

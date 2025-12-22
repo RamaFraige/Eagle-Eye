@@ -11,12 +11,12 @@
     <header  class="site-header">
         <img src="../LOGO.jpg" alt="Eagle Eye logo" class="site-logo" />
     <div class="site-title">
-        <h1>Eagle Eye Test</h1>
-        <p>Real-Time Threat Detection and Monitoring</p> 
+        <h1>Eagle Eye Dashboard</h1>
+        <p>Real-Time Threat Detection & Monitoring</p> 
     </div>
     <div class="header-actions">
         <button id="notification-bell" class="icon-btn" title="Notifications">🔔</button>
-        <a id="login-link" href="/login.html">Login</a>
+        <a id="login-link" href="/">Login</a>
     </div>
     </header>
 
@@ -56,7 +56,7 @@
                         <div class="modal-actions">
                             <button id="save-clip" class="primary">Save Clip</button>
                             <button id="dismiss-clip" class="warn">Dismiss Alert</button>
-                            <button id="feedback-open">Send Feedback</button>
+                            <button id="feedback-open">Send to Support</button>
                         </div>
                     </div>
                 </div>
@@ -66,13 +66,13 @@
         <section id="feedback-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
             <div class="modal-content small">
                 <header class="modal-header">
-                    <h3 id="feedback-title">Send Feedback</h3>
+                    <h3 id="feedback-title">Send to Support Team</h3>
                     <button id="close-feedback" class="icon-btn">✕</button>
                 </header>
                 <div class="modal-body">
-                    <textarea id="feedback-text" rows="6" placeholder="Tell the bot what's wrong or confirm this is real..."></textarea>
+                    <textarea id="feedback-text" rows="6" placeholder="Describe the issue or provide additional details..."></textarea>
                     <div class="modal-actions">
-                        <button id="send-feedback" class="primary">Send to Chatbot</button>
+                        <button id="send-feedback" class="primary">Send to Support</button>
                         <button id="cancel-feedback">Cancel</button>
                     </div>
                     <div id="feedback-status" class="muted"></div>

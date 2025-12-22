@@ -19,19 +19,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Login/Notification setup
     const loginLink = document.getElementById('login-link');
     const notificationBell = document.getElementById('notification-bell');
+    let userData = null;
+    try {
+        userData = JSON.parse(localStorage.getItem('eagle_user'));
+    } catch (e) {
+        userData = null;
+    }
     let notificationsEnabled = localStorage.getItem('eagle_notifications') === 'true';
-    let userPhone = localStorage.getItem('eagle_user');
+    let userPhone = userData ? userData.phone : null;
 
     function updateAuthUI() {
-        if (userPhone) {
-            loginLink.textContent = 'Logout';
+        if (userData) {
+            loginLink.textContent = `Logout (${userData.username})`;
             loginLink.href = '#';
             loginLink.addEventListener('click', logout);
             notificationBell.classList.toggle('active', notificationsEnabled);
             notificationBell.style.display = 'block';
         } else {
             loginLink.textContent = 'Login';
-            loginLink.href = '/login.html';
+            loginLink.href = '/';
             notificationBell.style.display = 'none';
         }
     }
@@ -40,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         localStorage.removeItem('eagle_user');
         localStorage.removeItem('eagle_notifications');
+        userData = null;
         userPhone = null;
         notificationsEnabled = false;
         updateAuthUI();
@@ -201,7 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveClipById(id) {
         const a = alerts.find(x => x.id === id);
         if (!a) return alert('Clip not found');
-        alert('Clip download not available in demo. In production, this would download the video file.');
+        alert('Saving clips requires real video files. In production, this would download the actual security footage.');
+        // Uncomment below when real clips are available:
         // try {
         //     const filename = `${a.id}_${a.type}_${new Date(a.time).toISOString().replace(/[:.]/g,'-')}.mp4`;
         //     await downloadFile(a.clipUrl, filename);
@@ -254,7 +262,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(API_FEEDBACK, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ alertId: currentAlert.id, message: text })
+                body: JSON.stringify({ 
+                    alertId: currentAlert.id, 
+                    message: text,
+                    userData: userData  // Include user information
+                })
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();

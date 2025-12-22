@@ -9,15 +9,28 @@
 <body>
     <div class="login-container">
         <div class="login-card">
-            <h1>Eagle Eye Login</h1>
+            <h1>Eagle Eye Security</h1>
+            <p class="login-subtitle">Professional Threat Detection & Monitoring</p>
             <form id="login-form">
                 <div class="form-group">
-                    <label for="phone">Phone Number (for notifications):</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+1234567890" required>
+                    <label for="username">Full Name:</label>
+                    <input type="text" id="username" name="username" placeholder="Enter your full name" required>
                 </div>
-                <button type="submit" class="btn-primary">Login</button>
+                <div class="form-group">
+                    <label for="email">Email Address:</label>
+                    <input type="email" id="email" name="email" placeholder="your.email@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number (for SMS alerts):</label>
+                    <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" placeholder="Create a secure password" required>
+                </div>
+                <button type="submit" class="btn-primary">Access System</button>
             </form>
-            <p class="note">Enter your phone number to enable SMS notifications for alerts.</p>
+            <p class="note">By logging in, you agree to receive security notifications via SMS.</p>
         </div>
     </div>
     <script src="login.js"></script>

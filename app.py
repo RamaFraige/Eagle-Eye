@@ -5,6 +5,10 @@ import random
 import time
 import os
 import threading
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from twilio.rest import Client 
 # Add import for your AI model here
 # from your_ai_model import YourAIModelClass
 
@@ -167,6 +171,11 @@ class AlertSystem:
 # Create the alert system
 alert_system = AlertSystem()
 
+# Twilio SMS Configuration - REPLACE WITH YOUR CREDENTIALS
+TWILIO_ACCOUNT_SID = 'your_account_sid_here'  # From Twilio Dashboard
+TWILIO_AUTH_TOKEN = 'your_auth_token_here'    # From Twilio Dashboard  
+TWILIO_PHONE_NUMBER = '+1234567890'          # Your Twilio phone number
+
 def background_detection():
     """Run continuous detection in background"""
     while True:
@@ -181,6 +190,10 @@ detection_thread.start()
 # FIXED ROUTES - Serve from FrontEnd folder
 @app.route('/')
 def serve_index():
+    return send_from_directory('FrontEnd', 'login.html')
+
+@app.route('/dashboard')
+def serve_dashboard():
     return send_from_directory('FrontEnd', 'index.html')
 
 @app.route('/style.css')
@@ -229,14 +242,15 @@ def check_detection():
 
 @app.route('/api/feedback', methods=['POST'])
 def handle_feedback():
-    """Handle feedback from frontend"""
+    """Send feedback to support team via email"""
     data = request.get_json()
     alert_id = data.get('alertId')
     message = data.get('message')
+    user_data = data.get('userData', {})
     
-    print(f"📝 Feedback received for alert {alert_id}: {message}")
+    print(f"📧 Sending feedback for alert {alert_id} from user {user_data.get('username', 'Unknown')}")
     
-    # Get alert details for personalized response
+    # Get alert details for context
     alert_details = None
     try:
         conn = sqlite3.connect('security.db')
@@ -249,26 +263,59 @@ def handle_feedback():
     except Exception as e:
         print(f"Error fetching alert details: {e}")
     
-    if alert_details:
-        alert_type = alert_details['type'].capitalize()
-        # Extract location from message (rough approximation)
-        location = "the premises"  # default
-        if "gate" in alert_details['message'].lower():
-            location = "the gate"
-        elif "parking" in alert_details['message'].lower():
-            location = "the parking area"
-        elif "cafeteria" in alert_details['message'].lower():
-            location = "the cafeteria"
-        elif "entrance" in alert_details['message'].lower():
-            location = "the entrance"
+    # Send email to support team
+    try:
+        # Email configuration - REPLACE WITH YOUR REAL CREDENTIALS
+        SMTP_SERVER = 'smtp.gmail.com'
+        SMTP_PORT = 587
+        SENDER_EMAIL = 'rama.f.fraige@gmail.com'  # ← Replace with your Gmail
+        SENDER_PASSWORD = 'nlbp fkrm jkqj hakk'  # ← Replace with Gmail App Password
+        RECEIVER_EMAIL = 'eagleeye.suppteam@gmail.com'
         
-        bot_response = f"We have received your report regarding the {alert_type} at {location}. Thank you. Our support team has been notified and will review the case promptly."
-    else:
-        bot_response = "Thank you for your feedback. Our support team has been notified and will review the case promptly."
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = RECEIVER_EMAIL
+        msg['Subject'] = f'Eagle Eye Support Request - Alert {alert_id}'
+        
+        body = f"""
+New support request from Eagle Eye system:
+
+USER INFORMATION:
+Name: {user_data.get('username', 'Not provided')}
+Email: {user_data.get('email', 'Not provided')}
+Phone: {user_data.get('phone', 'Not provided')}
+
+ALERT DETAILS:
+Alert ID: {alert_id}
+Alert Type: {alert_details['type'] if alert_details else 'Unknown'}
+Alert Description: {alert_details['message'] if alert_details else 'N/A'}
+
+USER MESSAGE:
+{message}
+
+Please review this case promptly.
+"""
+        msg.attach(MIMEText(body, 'plain'))
+        
+        # Send email
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(SENDER_EMAIL, RECEIVER_EMAIL, text)
+        server.quit()
+        
+        print("✅ Support email sent successfully")
+        response_msg = "Your message has been sent to our support team. We will respond within 24 hours."
+        
+    except Exception as e:
+        print(f"❌ Email failed: {e}")
+        response_msg = "Your message has been logged. Our support team will review it."
     
     return jsonify({
         'success': True,
-        'bot_response': bot_response
+        'bot_response': response_msg
     })
 
 @app.route('/login.html')
@@ -282,10 +329,14 @@ def serve_login_js():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
     phone = data.get('phone')
-    if phone:
-        # In production, validate and store user
-        print(f"📱 User logged in with phone: {phone}")
+    password = data.get('password')
+    
+    if username and email and phone and password:
+        # In production, validate and store user in database
+        print(f"👤 User logged in: {username} ({email}) - {phone}")
         return jsonify({'success': True})
     return jsonify({'success': False})
 
@@ -296,12 +347,25 @@ def logout():
 
 @app.route('/api/send_sms', methods=['POST'])
 def send_sms():
-    # Mock SMS sending
     data = request.get_json()
     phone = data.get('phone')
     message = data.get('message')
-    print(f"📱 Mock SMS to {phone}: {message}")
-    return jsonify({'success': True})
+    
+    if not phone or not message:
+        return jsonify({'success': False, 'error': 'Missing phone or message'})
+    
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            body=message,
+            from_=TWILIO_PHONE_NUMBER,
+            to=phone
+        )
+        print(f"📱 SMS sent to {phone}: {message}")
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"❌ SMS failed: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 # Catch-all route for any other static files
 @app.route('/<path:filename>')
