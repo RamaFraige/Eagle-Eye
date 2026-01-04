@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const playerModal = document.getElementById('player-modal');
     const clipPlayer = document.getElementById('clip-player');
+    const clipImage = document.getElementById('clip-image');
     const modalAlertInfo = document.getElementById('modal-alert-info');
     const closeModal = document.getElementById('close-modal');
     const saveClipBtn = document.getElementById('save-clip');
@@ -189,10 +190,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function openAlert(id) {
         currentAlert = alerts.find(a => a.id === id);
         if (!currentAlert) return;
-        clipPlayer.pause();
-        clipPlayer.removeAttribute('src');
-        clipPlayer.src = currentAlert.clipUrl;
-        clipPlayer.load();
+        const isImage = currentAlert.clipUrl && currentAlert.clipUrl.match(/\.jpe?g$|\.png$/i);
+        if (isImage) {
+            clipPlayer.classList.add('hidden');
+            clipPlayer.pause();
+            clipPlayer.removeAttribute('src');
+            clipImage.classList.remove('hidden');
+            clipImage.src = currentAlert.clipUrl;
+        } else {
+            clipImage.classList.add('hidden');
+            clipImage.removeAttribute('src');
+            clipPlayer.classList.remove('hidden');
+            clipPlayer.pause();
+            clipPlayer.removeAttribute('src');
+            clipPlayer.src = currentAlert.clipUrl;
+            clipPlayer.load();
+        }
         modalAlertInfo.textContent = `${currentAlert.title} — ${new Date(currentAlert.time).toLocaleString()}`;
         showModal(playerModal);
     }
@@ -207,16 +220,16 @@ document.addEventListener('DOMContentLoaded', () => {
     
     async function saveClipById(id) {
         const a = alerts.find(x => x.id === id);
-        if (!a) return alert('Clip not found');
-        alert('Saving clips requires real video files. In production, this would download the actual security footage.');
-        // Uncomment below when real clips are available:
-        // try {
-        //     const filename = `${a.id}_${a.type}_${new Date(a.time).toISOString().replace(/[:.]/g,'-')}.mp4`;
-        //     await downloadFile(a.clipUrl, filename);
-        // } catch (err) {
-        //     console.error('Save failed', err);
-        //     alert('Failed to save clip (see console)');
-        // }
+        if (!a || !a.clipUrl) return alert('Clip not found');
+        const ext = (a.clipUrl.split('.').pop() || 'mp4').toLowerCase();
+        const filename = `${a.id || 'alert'}_${a.type}_${new Date(a.time).toISOString().replace(/[:.]/g,'-')}.${ext}`;
+        try {
+            await downloadFile(a.clipUrl, filename);
+            alert('Clip saved.');
+        } catch (err) {
+            console.error('Save failed', err);
+            alert('Failed to save clip (see console)');
+        }
     }
 
     async function downloadFile(url, filename) {

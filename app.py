@@ -7,14 +7,12 @@ import os
 import threading
 import smtplib
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from twilio.rest import Client 
-# Add import for your AI model here
-# from your_ai_model import YourAIModelClass
+from email.mime.multipart import MIMEMultipart 
+from twilio.rest import Client
+from ai_model import EagleEyeAI
 
 app = Flask(__name__)
 
-# Database setup
 def init_db():
     conn = sqlite3.connect('security.db') 
     c = conn.cursor()
@@ -64,31 +62,53 @@ class DummyAISystem:
                 'clipUrl': ''  # No clip in demo
             }
         return None
+    
+# REAL AI SYSTEM - VER 1
 
 class RealAISystem:
     def __init__(self):
         # Initialize your real AI model here
-        # self.model = YourAIModelClass()
-        # self.model.load_weights('path/to/weights')
-        # self.camera = cv2.VideoCapture(0)  # or your video source
-        pass
+        try:
+            self.ai_detector = EagleEyeAI('best.pt')
+            print("✅ Real AI System initialized successfully!")
+        except Exception as e:
+            print(f"❌ Failed to initialize AI system: {e}")
+            self.ai_detector = None
     
     def detect_anomalies(self):
         """
         Run real detection on video feed
         Return detection dict if found, None otherwise
         """
-        # Example structure - adapt to your model's output
-        # ret, frame = self.camera.read()
-        # if not ret:
-        #     return None
-        # 
-        # results = self.model.predict(frame)
-        # for result in results:
-        #     if result.confidence > 0.8:  # threshold
-        #         alert_type = self.map_result_to_type(result)
-        #         return self.create_alert_dict(alert_type, result)
-        # 
+        if self.ai_detector is None:
+            return None
+        
+        # For now, we simulate video processing
+        # In production, this would process live camera feed or video stream
+        # For demo: randomly test with sample videos
+        import random
+        sample_videos = []
+        
+        if os.path.exists('clips'):
+            sample_videos = [f for f in os.listdir('clips') if f.endswith('.mp4')]
+        
+        if not sample_videos:
+            return None
+        
+        # Randomly check one of the sample videos
+        if random.random() < 0.3:  # 30% chance of checking a video
+            video_path = os.path.join('clips', random.choice(sample_videos))
+            detection = self.ai_detector.detect_in_video(video_path)
+            
+            if detection:
+                image_path = detection.get('image_path')
+                alert_dict = self.create_alert_dict(
+                    detection['type'],
+                    detection['confidence'],
+                    image_path or video_path
+                )
+                return alert_dict
+        
         return None
     
     def map_result_to_type(self, result):
@@ -96,12 +116,25 @@ class RealAISystem:
         # return 'weapon' or 'fight' etc.
         pass
     
-    def create_alert_dict(self, alert_type, result):
-        # Create the alert dict with clip, etc.
-        pass
+    def create_alert_dict(self, alert_type, confidence, video_source=''):
+        """Create the alert dict with clip or annotated frame."""
+        clip_url = ''
+        if video_source:
+            clip_url = '/' + video_source.replace('\\', '/').lstrip('/')
+        return {
+            'type': alert_type,
+            'title': f'{alert_type.capitalize()} detected',
+            'message': f'Possible {alert_type} threat detected (Confidence: {confidence:.0%})',
+            'time': datetime.datetime.now().isoformat(),
+            'clipUrl': clip_url,
+            'confidence': confidence
+        }
+
+
+
 
 # Choose which system to use
-USE_REAL_AI = False  # Set to True when ready
+USE_REAL_AI = True  # Set to True when ready
 
 if USE_REAL_AI:
     ai_system = RealAISystem()
@@ -124,6 +157,13 @@ class AlertSystem:
         """Save alert to database"""
         conn = sqlite3.connect('security.db')
         c = conn.cursor()
+
+        # Skip if an active alert already exists for the same clip/image
+        clip_url = alert_data.get('clipUrl', '')
+        c.execute('''SELECT id FROM alerts WHERE status = "active" AND clipUrl = ? LIMIT 1''', (clip_url,))
+        if c.fetchone():
+            conn.close()
+            return False
         
         c.execute('''INSERT INTO alerts (type, title, message, time, clipUrl)
                      VALUES (?, ?, ?, ?, ?)''', 
@@ -377,9 +417,8 @@ def serve_static(filename):
 
 @app.route('/clips/<path:filename>')
 def serve_clips(filename):
-    # For demo, return a placeholder response
-    print(f"🎥 Clip requested: {filename} - not available in demo")
-    return "Video clip not available in demo. Real clips would be stored here.", 404
+    # Serve real clips or annotated frames from the clips folder
+    return send_from_directory('clips', filename)
 
 if __name__ == '__main__':
     # Add some initial sample data
@@ -402,3 +441,4 @@ if __name__ == '__main__':
     print("If you still see 404 errors, try: http://127.0.0.1:5000/")
     
     app.run(debug=True, host='127.0.0.1', port=5000)
+
