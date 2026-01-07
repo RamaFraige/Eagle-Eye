@@ -7,21 +7,28 @@ import random
 from datetime import datetime
 
 class EagleEyeAI:
-    def __init__(self, model_path='best.pt'):
-        print(f" Loading AI model from: {model_path}")
+    def __init__(self, smoke_model_path='best.pt', weapon_model_path='guns11n.pt'):
+        print(f" Loading smoke model from: {smoke_model_path}")
+        self.smoke_model = None
+        self.weapon_model = None
+        self.has_smoke_model = False
+        self.has_weapon_model = False
         try:
-            self.model = YOLO(model_path)
-            print(" AI Model loaded successfully!")
-            print(f"   Model type: {type(self.model).__name__}")
-            self.has_model = True
+            self.smoke_model = YOLO(smoke_model_path)
+            print(" ✅ Smoke model loaded!")
+            self.has_smoke_model = True
         except Exception as e:
-            print(f" Error loading model: {e}")
-            print("  Falling back to demo mode")
-            self.model = None
-            self.has_model = False
+            print(f" Error loading smoke model: {e}")
+        print(f" Loading weapon model from: {weapon_model_path}")
+        try:
+            self.weapon_model = YOLO(weapon_model_path)
+            print(" ✅ Weapon model loaded!")
+            self.has_weapon_model = True
+        except Exception as e:
+            print(f" Error loading weapon model: {e}")
     
     def detect_in_video(self, video_path, confidence_threshold=0.5):
-        if not self.has_model:
+        if not (self.has_smoke_model or self.has_weapon_model):
             print("  No AI model - using demo detection")
             if random.random() < 0.3:
                 return {'type': 'smoke', 'confidence': 0.85}
@@ -42,15 +49,25 @@ class EagleEyeAI:
                 if not ret:
                     break
 
-                results = self.model(frame, conf=confidence_threshold)
-                for result in results:
+                # Run both models if available
+                model_results = []
+                if self.has_smoke_model:
+                    model_results.extend(self.smoke_model(frame, conf=confidence_threshold))
+                if self.has_weapon_model:
+                    model_results.extend(self.weapon_model(frame, conf=confidence_threshold))
+
+                for result in model_results:
                     boxes = result.boxes
                     if boxes is None:
                         continue
                     for box in boxes:
                         cls_id = int(box.cls[0])
                         confidence = float(box.conf[0])
-                        class_name = self.model.names[cls_id]
+                        # Prefer names from the specific model that generated the result
+                        try:
+                            class_name = result.names[cls_id]
+                        except Exception:
+                            class_name = 'unknown'
                         alert_type = self.map_class_to_alert_type(class_name)
 
                         if alert_type:

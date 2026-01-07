@@ -3,7 +3,7 @@ import sqlite3
 import datetime
 import random
 import time
-import os
+import os 
 import threading
 import smtplib
 from email.mime.text import MIMEText
@@ -69,7 +69,7 @@ class RealAISystem:
     def __init__(self):
         # Initialize your real AI model here
         try:
-            self.ai_detector = EagleEyeAI('best.pt')
+            self.ai_detector = EagleEyeAI(smoke_model_path='best.pt', weapon_model_path='guns11n.pt')
             print("✅ Real AI System initialized successfully!")
         except Exception as e:
             print(f"❌ Failed to initialize AI system: {e}")
