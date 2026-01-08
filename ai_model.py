@@ -150,31 +150,46 @@ class FightingAIDetector:
     """
     Fighting/action detection using torch-based LSTM model.
     Wraps the fight_detection package from Farah's project.
+    
+    ⚡ LAZY LOADING: Models are loaded on first use, not at app startup.
+    This keeps Flask responsive while still enabling fighting detection.
     """
     def __init__(self, yolo_pose_path='clips/weights/yolo11n-pose.pt', 
                  action_model_path='clips/weights/action.pth',
                  confidence_threshold=0.5):
+        self.yolo_pose_path = yolo_pose_path
+        self.action_model_path = action_model_path
+        self.confidence_threshold = confidence_threshold
+        
+        # Will be initialized on first use (lazy loading)
         self.has_fighting_model = False
         self.backend = None
-        self.confidence_threshold = confidence_threshold
+        self.fight_pipeline = None
+        self._models_loaded = False
+    
+    def _initialize_models(self):
+        """Lazy load the fighting detection models on first use."""
+        if self._models_loaded:
+            return  # Already loaded, skip
         
         try:
             # Dynamically import fight_detection components
             from fight_detection.backends.torch import TorchFightBackend
             from fight_detection import fight_pipeline
             
-            print(f"[FIGHTING] Loading pose model from: {yolo_pose_path}")
-            print(f"[FIGHTING] Loading action model from: {action_model_path}")
+            print(f"[FIGHTING] 🚀 Lazy-loading pose model from: {self.yolo_pose_path}")
+            print(f"[FIGHTING] 🚀 Lazy-loading action model from: {self.action_model_path}")
             
             # Initialize the TorchFightBackend
             self.backend = TorchFightBackend(
-                yolo_model_path=yolo_pose_path,
-                action_model_path=action_model_path,
-                confidence_threshold=confidence_threshold
+                yolo_model_path=self.yolo_pose_path,
+                action_model_path=self.action_model_path,
+                confidence_threshold=self.confidence_threshold
             )
             self.fight_pipeline = fight_pipeline
             self.has_fighting_model = True
-            print("[FIGHTING] ✅ Fighting detector initialized successfully!")
+            self._models_loaded = True
+            print("[FIGHTING] ✅ Fighting detector loaded successfully (on-demand)!")
             
         except ImportError as e:
             print(f"[FIGHTING] ⚠️  fight_detection package not available: {e}")
@@ -186,6 +201,10 @@ class FightingAIDetector:
     
     def detect_in_video(self, video_path, confidence_threshold=None):
         """Detect fighting/actions in video frames."""
+        # Lazy load models on first call
+        if not self._models_loaded:
+            self._initialize_models()
+        
         if not self.has_fighting_model:
             print(f"[FIGHTING] Model not available for: {video_path}")
             return None

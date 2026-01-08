@@ -67,9 +67,9 @@ class DummyAISystem:
 
 class RealAISystem:
     def __init__(self):
-        # Initialize your real AI models here
+        # Initialize smoke/weapon detectors at startup
         self.ai_detector = None
-        self.fighting_detector = None
+        self.fighting_detector = None  # Will be lazy-loaded on first use
         
         try:
             self.ai_detector = EagleEyeAI(smoke_model_path='best.pt', weapon_model_path='guns11n.pt')
@@ -78,20 +78,18 @@ class RealAISystem:
             print(f"❌ Failed to initialize Smoke/Weapon AI system: {e}")
             self.ai_detector = None
         
-        try:
-            self.fighting_detector = FightingAIDetector(
-                yolo_pose_path='clips/weights/yolo11n-pose.pt',
-                action_model_path='clips/weights/action.pth'
-            )
-            print("✅ Fighting AI System initialized successfully!")
-        except Exception as e:
-            print(f"⚠️  Fighting AI System initialization: {e}")
-            self.fighting_detector = None
+        # Create fighting detector instance (models load lazily on first use)
+        self.fighting_detector = FightingAIDetector(
+            yolo_pose_path='clips/weights/yolo11n-pose.pt',
+            action_model_path='clips/weights/action.pth'
+        )
+        print("✅ Fighting AI System initialized (lazy-loading enabled)!")
     
     def detect_anomalies(self):
         """
         Run real detection on video feed.
         Checks all AI detectors (smoke, weapon, fighting).
+        Fighting models load on first detection (lazy loading).
         Return detection dict if found, None otherwise.
         """
         if self.ai_detector is None and self.fighting_detector is None:
@@ -125,7 +123,7 @@ class RealAISystem:
                     )
                     return alert_dict
             
-            # Try fighting detection
+            # Try fighting detection (models lazy-load on first call)
             if self.fighting_detector:
                 detection = self.fighting_detector.detect_in_video(video_path)
                 if detection:
