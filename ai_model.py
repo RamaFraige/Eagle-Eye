@@ -70,7 +70,10 @@ class EagleEyeAI:
                             class_name = 'unknown'
                         alert_type = self.map_class_to_alert_type(class_name)
 
-                        if alert_type:
+                        # Higher threshold for smoke to reduce false positives
+                        min_confidence = 0.80 if alert_type == 'smoke' else confidence_threshold
+                        
+                        if alert_type and confidence >= min_confidence:
                             detections.append({
                                 'type': alert_type,
                                 'class_name': class_name,
@@ -109,6 +112,9 @@ class EagleEyeAI:
     
     def map_class_to_alert_type(self, class_name):
         class_lower = class_name.lower()
+        # Ignore explicit negatives (models sometimes output "not_smoking")
+        if any(neg in class_lower for neg in ['no smoking', 'no_smoking', 'not smoking', 'not_smoking', 'nonsmoking']):
+            return None
         if any(word in class_lower for word in ['smoke', 'smoking', 'fire', 'smog', 'fume', 'cigarette']):
             return 'smoke'
         if any(word in class_lower for word in ['weapon', 'gun', 'knife', 'pistol', 'rifle', 'sword']):

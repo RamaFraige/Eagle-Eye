@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, jsonify, request
+from flask import Flask, send_from_directory, jsonify, request, redirect, url_for
 import sqlite3
 import datetime
 import random
@@ -12,6 +12,9 @@ from twilio.rest import Client
 from ai_model import EagleEyeAI, FightingAIDetector
 
 app = Flask(__name__)
+
+# Temporary flag to bypass login for debugging UI.
+SKIP_LOGIN = True
 
 def init_db():
     conn = sqlite3.connect('security.db') 
@@ -90,26 +93,26 @@ class RealAISystem:
         Run real detection on video feed.
         Checks all AI detectors (smoke, weapon, fighting).
         Fighting models load on first detection (lazy loading).
+        Uses 3 specific sample videos for testing.
         Return detection dict if found, None otherwise.
         """
         if self.ai_detector is None and self.fighting_detector is None:
             return None
         
-        # For now, we simulate video processing
-        # In production, this would process live camera feed or video stream
-        # For demo: randomly test with sample videos
-        import random
-        sample_videos = []
+        # Use specific sample videos (one from each category)
+        sample_videos = [
+            'clips/smoking sample_3.mp4',
+            'clips/guns sample_3.mp4',
+            'clips/fight sample_3.mp4'
+        ]
         
-        if os.path.exists('clips'):
-            sample_videos = [f for f in os.listdir('clips') if f.endswith('.mp4')]
-        
-        if not sample_videos:
-            return None
-        
-        # Randomly check one of the sample videos
         if random.random() < 0.3:  # 30% chance of checking a video
-            video_path = os.path.join('clips', random.choice(sample_videos))
+            video_path = random.choice(sample_videos)
+            
+            # Verify file exists before processing
+            if not os.path.exists(video_path):
+                print(f" Video not found: {video_path}")
+                return None
             
             # Try smoke/weapon detection first
             if self.ai_detector:
@@ -256,6 +259,9 @@ detection_thread.start()
 # FIXED ROUTES - Serve from FrontEnd folder
 @app.route('/')
 def serve_index():
+    if SKIP_LOGIN:
+        # Directly load dashboard while keeping login page intact
+        return redirect(url_for('serve_dashboard'))
     return send_from_directory('FrontEnd', 'login.html')
 
 @app.route('/dashboard')
@@ -399,6 +405,11 @@ def login():
     email = data.get('email')
     phone = data.get('phone')
     password = data.get('password')
+
+    # Temporary bypass for faster UI testing
+    if SKIP_LOGIN:
+        print("🔓 SKIP_LOGIN enabled - auto-success")
+        return jsonify({'success': True})
     
     if username and email and phone and password:
         # In production, validate and store user in database
