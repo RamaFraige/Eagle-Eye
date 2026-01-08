@@ -9,7 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart 
 from twilio.rest import Client
-from ai_model import EagleEyeAI
+from ai_model import EagleEyeAI, FightingAIDetector
 
 app = Flask(__name__)
 
@@ -67,20 +67,34 @@ class DummyAISystem:
 
 class RealAISystem:
     def __init__(self):
-        # Initialize your real AI model here
+        # Initialize your real AI models here
+        self.ai_detector = None
+        self.fighting_detector = None
+        
         try:
             self.ai_detector = EagleEyeAI(smoke_model_path='best.pt', weapon_model_path='guns11n.pt')
-            print("✅ Real AI System initialized successfully!")
+            print("✅ Smoke/Weapon AI System initialized successfully!")
         except Exception as e:
-            print(f"❌ Failed to initialize AI system: {e}")
+            print(f"❌ Failed to initialize Smoke/Weapon AI system: {e}")
             self.ai_detector = None
+        
+        try:
+            self.fighting_detector = FightingAIDetector(
+                yolo_pose_path='clips/weights/yolo11n-pose.pt',
+                action_model_path='clips/weights/action.pth'
+            )
+            print("✅ Fighting AI System initialized successfully!")
+        except Exception as e:
+            print(f"⚠️  Fighting AI System initialization: {e}")
+            self.fighting_detector = None
     
     def detect_anomalies(self):
         """
-        Run real detection on video feed
-        Return detection dict if found, None otherwise
+        Run real detection on video feed.
+        Checks all AI detectors (smoke, weapon, fighting).
+        Return detection dict if found, None otherwise.
         """
-        if self.ai_detector is None:
+        if self.ai_detector is None and self.fighting_detector is None:
             return None
         
         # For now, we simulate video processing
@@ -98,16 +112,30 @@ class RealAISystem:
         # Randomly check one of the sample videos
         if random.random() < 0.3:  # 30% chance of checking a video
             video_path = os.path.join('clips', random.choice(sample_videos))
-            detection = self.ai_detector.detect_in_video(video_path)
             
-            if detection:
-                image_path = detection.get('image_path')
-                alert_dict = self.create_alert_dict(
-                    detection['type'],
-                    detection['confidence'],
-                    image_path or video_path
-                )
-                return alert_dict
+            # Try smoke/weapon detection first
+            if self.ai_detector:
+                detection = self.ai_detector.detect_in_video(video_path)
+                if detection:
+                    image_path = detection.get('image_path')
+                    alert_dict = self.create_alert_dict(
+                        detection['type'],
+                        detection['confidence'],
+                        image_path or video_path
+                    )
+                    return alert_dict
+            
+            # Try fighting detection
+            if self.fighting_detector:
+                detection = self.fighting_detector.detect_in_video(video_path)
+                if detection:
+                    image_path = detection.get('image_path')
+                    alert_dict = self.create_alert_dict(
+                        detection['type'],
+                        detection['confidence'],
+                        image_path or video_path
+                    )
+                    return alert_dict
         
         return None
     

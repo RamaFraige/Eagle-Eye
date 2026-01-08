@@ -1,0 +1,56 @@
+[project]
+name = "eagle_eye"
+version = "0.1.0"
+description = "Eagle Eye is a cutting-edge, real-time AI application designed to bring powerful computer vision capabilities directly to your browser via WebRTC!"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  # Core
+  "fastrtc",
+  "fastapi>=0.121.3",
+  # Database
+  "sqlalchemy>=2.0.44",
+  "sqlmodel>=0.0.27",
+  # UseCase
+  "opencv-python-headless>=4.12.0.88",
+  # Face-Recognition
+  "deepface>=0.0.96",
+  "tf-keras>=2.20.1",
+  "faiss-cpu>=1.13.0",
+  # Object-Detection
+  "ultralytics>=8.3.235",
+  # Other
+  "rich>=14.2.0",
+  "gdown>=5.2.0",
+  "uvicorn>=0.38.0",
+  "aiofiles>=25.1.0",
+  "pydantic>=2.12.4",
+  "python-multipart>=0.0.20",
+  "pydantic-settings>=2.12.0",
+  "behavior-detection",
+  "fight-detection",
+]
+
+
+[tool.uv.sources]
+fastrtc = { path = "packages/fastrtc-0.2.1-py3-none-any.whl" }
+behavior-detection = { path = "packages/behavior_detection-0.1.2-py3-none-any.whl" }
+fight-detection = { path = "packages/fight_detection-0.1.4-py3-none-any.whl" }
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=7.1.2",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.14.8",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501", "W291", "W293", "E402"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"

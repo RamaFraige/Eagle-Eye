@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Security Alert</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        -webkit-text-size-adjust: none;
+        width: 100% !important;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-top: 20px;
+        margin-bottom: 20px;
+      }
+      .header {
+        background-color: #d9534f;
+        color: #ffffff;
+        padding: 20px;
+        text-align: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 24px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+        .content {
+            padding: 30px;
+        }
+        .section-title {
+            color: #555;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            margin-top: 25px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .info-item {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #d9534f;
+        }
+        .info-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .info-value {
+            font-size: 15px;
+            color: #333;
+            font-weight: 500;
+        }
+        .metadata-table {
+            width: 100%;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            overflow: hidden;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .metadata-table th, .metadata-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        .metadata-table th {
+            background-color: #f8f9fa;
+            color: #666;
+            font-weight: 600;
+            width: 35%;
+            font-size: 13px;
+        }
+        .metadata-table td {
+            font-size: 14px;
+            color: #333;
+        }
+        .metadata-table tr:last-child td, .metadata-table tr:last-child th {
+            border-bottom: none;
+        }
+      .alert-summary {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        text-align: center;
+        font-weight: bold;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f8f9fa;
+        color: #333;
+        font-weight: 600;
+        width: 30%;
+      }
+        .thumbnail-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .thumbnail-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            place-items: center;
+            background-size: cover;
+            background-position: center;
+        }
+      /* Light theme footer */
+      .footer {
+        background-color: #f2f2f2; /* very light gray */
+        color: #555;              /* medium‑gray text */
+        padding: 20px;
+        text-align: center;
+        font-size: 12px;
+        font-family: Arial, sans‑serif;
+      }
+
+      /* Large, eye‑catching button */
+      .btn {
+        display: inline‑block;
+        background-color: #d9534f;
+        color: #ffffff;
+        padding: 16px 32px;        /* bigger padding */
+        font-size: 18px;           /* larger text */
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: bold;
+        margin-top: 15px;
+        border: 2px solid #c9302c; /* slightly darker border */
+      }
+
+      .btn:hover {
+        background-color: #c9302c;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Security Alert</h1>
+      </div>
+      <div class="content">
+            <div class="alert-summary">
+                {{ event.name.title() }} detected on Stream {{ event.stream_id }}
+            </div>
+            
+            {% if has_snapshot %}
+            <a href="cid:{{ video_cid }}" class="thumbnail-container" style="width:100%; max-width:600px; margin:auto;">
+                  <img
+                      src="cid:snapshot"
+                      alt="Snapshot"
+                      style="
+                          display:block;
+                          width:100%;
+                          height:auto;
+                          object-fit:contain;
+                          border:1px solid #ccc;
+                      "
+                  />
+            </a>
+            {% endif %}
+
+            
+            <div class="section-title">Event Summary</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Rule Name</div>
+                    <div class="info-value">{{ event.name }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Rules</div>
+                    <div class="info-value">{{ event.rule_name }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Severity</div>
+                    <div class="info-value" style="color: #d9534f;">High</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Date Time</div>
+                    <div class="info-value">{{ event_dt.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                </div>
+            </div>
+
+            {% if event.metadata %}
+            <div class="section-title">Detection Metadata</div>
+            <table class="metadata-table">
+                <tbody>
+                    {% for key, value in event.metadata.items() %}
+                    <tr>
+                        <th>{{ key|replace('_', ' ')|title }}</th>
+                        <td>{{ value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="cid:{{ video_cid }}" class="btn">View Recording</a>
+            </div>
+
+        </div>
+        <div class="footer">
+            <p>Generated by Eagle Eye Security System &bull; {{ now.year }}</p>
+        </div>
+    </div>
+  </body>
+</html>

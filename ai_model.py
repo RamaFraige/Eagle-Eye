@@ -146,6 +146,142 @@ class EagleEyeAI:
         
         return results
 
+class FightingAIDetector:
+    """
+    Fighting/action detection using torch-based LSTM model.
+    Wraps the fight_detection package from Farah's project.
+    """
+    def __init__(self, yolo_pose_path='clips/weights/yolo11n-pose.pt', 
+                 action_model_path='clips/weights/action.pth',
+                 confidence_threshold=0.5):
+        self.has_fighting_model = False
+        self.backend = None
+        self.confidence_threshold = confidence_threshold
+        
+        try:
+            # Dynamically import fight_detection components
+            from fight_detection.backends.torch import TorchFightBackend
+            from fight_detection import fight_pipeline
+            
+            print(f"[FIGHTING] Loading pose model from: {yolo_pose_path}")
+            print(f"[FIGHTING] Loading action model from: {action_model_path}")
+            
+            # Initialize the TorchFightBackend
+            self.backend = TorchFightBackend(
+                yolo_model_path=yolo_pose_path,
+                action_model_path=action_model_path,
+                confidence_threshold=confidence_threshold
+            )
+            self.fight_pipeline = fight_pipeline
+            self.has_fighting_model = True
+            print("[FIGHTING] ✅ Fighting detector initialized successfully!")
+            
+        except ImportError as e:
+            print(f"[FIGHTING] ⚠️  fight_detection package not available: {e}")
+            print("[FIGHTING] Fighting detection disabled - wheel needs to be installed")
+            self.has_fighting_model = False
+        except Exception as e:
+            print(f"[FIGHTING] ❌ Error initializing fighting detector: {e}")
+            self.has_fighting_model = False
+    
+    def detect_in_video(self, video_path, confidence_threshold=None):
+        """Detect fighting/actions in video frames."""
+        if not self.has_fighting_model:
+            print(f"[FIGHTING] Model not available for: {video_path}")
+            return None
+        
+        if confidence_threshold is None:
+            confidence_threshold = self.confidence_threshold
+        
+        try:
+            print(f"[FIGHTING] Processing video: {video_path}")
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                print(f"[FIGHTING] Cannot open video: {video_path}")
+                return None
+            
+            detections = []
+            annotated_path = None
+            frames_buffer = []
+            max_frames = 10
+            
+            # Collect frames for analysis
+            for frame_num in range(max_frames):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frames_buffer.append((frame_num, frame))
+            
+            cap.release()
+            
+            if not frames_buffer:
+                print(f"[FIGHTING] No frames read from: {video_path}")
+                return None
+            
+            # Process frames through pipeline
+            for frame_num, frame in frames_buffer:
+                try:
+                    # Run fight_pipeline on the frame
+                    generator = self.fight_pipeline(frame, backend=self.backend)
+                    _, result = next(generator)
+                    
+                    if result is None:
+                        continue
+                    
+                    # Extract detections from result
+                    detection_list = result.interactions if result.interactions else (result.actions if hasattr(result, 'actions') else [])
+                    
+                    for detection in detection_list:
+                        confidence = float(detection.conf) if hasattr(detection, 'conf') else 0.0
+                        if confidence >= confidence_threshold:
+                            label = detection.label if hasattr(detection, 'label') else 'fight'
+                            detections.append({
+                                'type': 'fight',
+                                'class_name': label,
+                                'confidence': confidence,
+                                'frame': frame_num
+                            })
+                            
+                            # Save annotated frame on first detection
+                            if annotated_path is None:
+                                annotated_dir = os.path.join('clips', 'annotated')
+                                os.makedirs(annotated_dir, exist_ok=True)
+                                annotated_file = f"{os.path.splitext(os.path.basename(video_path))[0]}_frame{frame_num}.jpg"
+                                annotated_path = os.path.join(annotated_dir, annotated_file)
+                                try:
+                                    annotated_img = result.plot()  # ndarray with boxes drawn
+                                    cv2.imwrite(annotated_path, annotated_img)
+                                except Exception as e:
+                                    print(f"[FIGHTING] Could not save annotated frame: {e}")
+                                    annotated_path = None
+                            
+                            print(f"[FIGHTING] Frame {frame_num}: FIGHT detected ({confidence:.0%})")
+                
+                except StopIteration:
+                    continue
+                except Exception as e:
+                    print(f"[FIGHTING] Error processing frame {frame_num}: {e}")
+                    continue
+            
+            if detections:
+                best_detection = max(detections, key=lambda x: x['confidence'])
+                print(f"[FIGHTING] FIGHT detected! Confidence: {best_detection['confidence']:.0%}")
+                return {
+                    'type': 'fight',
+                    'confidence': best_detection['confidence'],
+                    'class_name': best_detection['class_name'],
+                    'image_path': annotated_path,
+                    'video_path': video_path
+                }
+            else:
+                print(f"[FIGHTING] No fights detected in video")
+                return None
+        
+        except Exception as e:
+            print(f"[FIGHTING] Error processing video: {e}")
+            return None
+
+
 def quick_test():
     print(" Quick AI Model Test")
     print("=" * 40)
