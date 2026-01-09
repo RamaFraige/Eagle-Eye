@@ -229,7 +229,7 @@ class FightingAIDetector:
             annotated_path = None
             frames_buffer = []
             max_frames = 10
-            best_frame_data = None  # Track (confidence, frame_num, result) for highest confidence
+            last_frame_data = None  # Track last frame with detection (action peak)
             
             # Collect frames for analysis
             for frame_num in range(max_frames):
@@ -268,9 +268,8 @@ class FightingAIDetector:
                                 'frame': frame_num
                             })
                             
-                            # Track frame with highest confidence for saving
-                            if best_frame_data is None or confidence > best_frame_data[0]:
-                                best_frame_data = (confidence, frame_num, result)
+                            # Always update to latest frame (action builds over time)
+                            last_frame_data = (confidence, frame_num, result)
                             
                             print(f"[FIGHTING] Frame {frame_num}: FIGHT detected ({confidence:.0%})")
                 
@@ -280,17 +279,17 @@ class FightingAIDetector:
                     print(f"[FIGHTING] Error processing frame {frame_num}: {e}")
                     continue
             
-            # Save the frame with highest confidence (best action capture)
-            if detections and best_frame_data:
-                best_confidence, best_frame_num, best_result = best_frame_data
+            # Save the last frame with detection (fighting action peaks at end of sequence)
+            if detections and last_frame_data:
+                last_confidence, last_frame_num, last_result = last_frame_data
                 annotated_dir = os.path.join('clips', 'annotated')
                 os.makedirs(annotated_dir, exist_ok=True)
-                annotated_file = f"{os.path.splitext(os.path.basename(video_path))[0]}_frame{best_frame_num}.jpg"
+                annotated_file = f"{os.path.splitext(os.path.basename(video_path))[0]}_frame{last_frame_num}.jpg"
                 annotated_path = os.path.join(annotated_dir, annotated_file)
                 try:
-                    annotated_img = best_result.plot()  # ndarray with boxes drawn
+                    annotated_img = last_result.plot()  # ndarray with boxes drawn
                     cv2.imwrite(annotated_path, annotated_img)
-                    print(f"[FIGHTING] Saved best frame #{best_frame_num} (conf: {best_confidence:.0%})")
+                    print(f"[FIGHTING] Saved last action frame #{last_frame_num} (conf: {last_confidence:.0%})")
                 except Exception as e:
                     print(f"[FIGHTING] Could not save annotated frame: {e}")
                     annotated_path = None
