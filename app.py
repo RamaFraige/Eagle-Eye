@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, jsonify, request, redirect, url_for
+from flask import Flask, send_from_directory, jsonify, request, redirect, url_for, session
 import sqlite3
 import datetime
 import random
@@ -12,9 +12,20 @@ from twilio.rest import Client
 from ai_model import EagleEyeAI, FightingAIDetector
 
 app = Flask(__name__)
+app.secret_key = os.getenv('EAGLE_SECRET_KEY', 'dev-secret-key')
 
 # Temporary flag to bypass login for debugging UI.
-SKIP_LOGIN = True
+# Read from environment for easy toggling without code changes.
+# Login bypass is disabled by default; set EAGLE_SKIP_LOGIN=1 to enable.
+SKIP_LOGIN = os.getenv('EAGLE_SKIP_LOGIN', 'false').lower() in ('1', 'true', 'yes')
+print(f"Login bypass (SKIP_LOGIN): {SKIP_LOGIN}")
+
+ALLOWED_USER = {
+    'username': 'Rama Fraige',
+    'email': 'rama.f.fraige@gmail.com',
+    'phone': '+962775603083',
+    'password': 'rorolovemomo'
+}
 
 def init_db():
     conn = sqlite3.connect('security.db') 
@@ -259,13 +270,15 @@ detection_thread.start()
 # FIXED ROUTES - Serve from FrontEnd folder
 @app.route('/')
 def serve_index():
-    if SKIP_LOGIN:
+    if SKIP_LOGIN or session.get('authenticated'):
         # Directly load dashboard while keeping login page intact
         return redirect(url_for('serve_dashboard'))
     return send_from_directory('FrontEnd', 'login.html')
 
 @app.route('/dashboard')
 def serve_dashboard():
+    if not SKIP_LOGIN and not session.get('authenticated'):
+        return redirect(url_for('serve_index'))
     return send_from_directory('FrontEnd', 'index.html')
 
 @app.route('/style.css')
@@ -409,17 +422,31 @@ def login():
     # Temporary bypass for faster UI testing
     if SKIP_LOGIN:
         print("🔓 SKIP_LOGIN enabled - auto-success")
+        session['authenticated'] = True
+        session['user'] = username or 'Demo User'
         return jsonify({'success': True})
-    
-    if username and email and phone and password:
-        # In production, validate and store user in database
+
+    def norm(val):
+        return (val or '').strip()
+
+    provided = {
+        'username': norm(username),
+        'email': norm(email),
+        'phone': norm(phone),
+        'password': norm(password)
+    }
+    if all(provided[k] and provided[k] == ALLOWED_USER[k] for k in ALLOWED_USER):
+        session['authenticated'] = True
+        session['user'] = ALLOWED_USER['username']
         print(f"👤 User logged in: {username} ({email}) - {phone}")
         return jsonify({'success': True})
-    return jsonify({'success': False})
+
+    print(f"❌ Invalid login attempt for user: {username} ({email}) - {phone}")
+    return jsonify({'success': False}), 401
 
 @app.route('/api/logout')
 def logout():
-    # Mock logout
+    session.clear()
     return jsonify({'success': True})
 
 @app.route('/api/send_sms', methods=['POST'])

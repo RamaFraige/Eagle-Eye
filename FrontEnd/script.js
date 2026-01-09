@@ -29,27 +29,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let userPhone = userData ? userData.phone : null;
 
     function updateAuthUI() {
+        loginLink.onclick = null;
         if (userData) {
             loginLink.textContent = `Logout (${userData.username})`;
             loginLink.href = '#';
-            loginLink.addEventListener('click', logout);
+            loginLink.onclick = logout;
             notificationBell.classList.toggle('active', notificationsEnabled);
             notificationBell.style.display = 'block';
         } else {
             loginLink.textContent = 'Login';
             loginLink.href = '/';
+            loginLink.onclick = null;
             notificationBell.style.display = 'none';
         }
     }
 
-    function logout(e) {
-        e.preventDefault();
+    async function logout(e) {
+        e?.preventDefault();
+        try {
+            await fetch('/api/logout');
+        } catch (err) {
+            console.error('Logout error', err);
+        }
         localStorage.removeItem('eagle_user');
         localStorage.removeItem('eagle_notifications');
         userData = null;
         userPhone = null;
         notificationsEnabled = false;
         updateAuthUI();
+        window.location.href = '/';
     }
 
     notificationBell.addEventListener('click', () => {

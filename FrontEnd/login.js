@@ -23,7 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, email, phone, password })
             });
-            if (res.ok) {
+            const json = await res.json().catch(() => ({}));
+            if (res.ok && json.success) {
                 // Store user data
                 localStorage.setItem('eagle_user', JSON.stringify({ username, email, phone, password }));
                 window.location.href = '/dashboard';
