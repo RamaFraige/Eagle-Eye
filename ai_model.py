@@ -229,6 +229,7 @@ class FightingAIDetector:
             annotated_path = None
             frames_buffer = []
             max_frames = 10
+            best_frame_data = None  # Track (confidence, frame_num, result) for highest confidence
             
             # Collect frames for analysis
             for frame_num in range(max_frames):
@@ -267,18 +268,9 @@ class FightingAIDetector:
                                 'frame': frame_num
                             })
                             
-                            # Save annotated frame on first detection
-                            if annotated_path is None:
-                                annotated_dir = os.path.join('clips', 'annotated')
-                                os.makedirs(annotated_dir, exist_ok=True)
-                                annotated_file = f"{os.path.splitext(os.path.basename(video_path))[0]}_frame{frame_num}.jpg"
-                                annotated_path = os.path.join(annotated_dir, annotated_file)
-                                try:
-                                    annotated_img = result.plot()  # ndarray with boxes drawn
-                                    cv2.imwrite(annotated_path, annotated_img)
-                                except Exception as e:
-                                    print(f"[FIGHTING] Could not save annotated frame: {e}")
-                                    annotated_path = None
+                            # Track frame with highest confidence for saving
+                            if best_frame_data is None or confidence > best_frame_data[0]:
+                                best_frame_data = (confidence, frame_num, result)
                             
                             print(f"[FIGHTING] Frame {frame_num}: FIGHT detected ({confidence:.0%})")
                 
@@ -287,6 +279,21 @@ class FightingAIDetector:
                 except Exception as e:
                     print(f"[FIGHTING] Error processing frame {frame_num}: {e}")
                     continue
+            
+            # Save the frame with highest confidence (best action capture)
+            if detections and best_frame_data:
+                best_confidence, best_frame_num, best_result = best_frame_data
+                annotated_dir = os.path.join('clips', 'annotated')
+                os.makedirs(annotated_dir, exist_ok=True)
+                annotated_file = f"{os.path.splitext(os.path.basename(video_path))[0]}_frame{best_frame_num}.jpg"
+                annotated_path = os.path.join(annotated_dir, annotated_file)
+                try:
+                    annotated_img = best_result.plot()  # ndarray with boxes drawn
+                    cv2.imwrite(annotated_path, annotated_img)
+                    print(f"[FIGHTING] Saved best frame #{best_frame_num} (conf: {best_confidence:.0%})")
+                except Exception as e:
+                    print(f"[FIGHTING] Could not save annotated frame: {e}")
+                    annotated_path = None
             
             if detections:
                 best_detection = max(detections, key=lambda x: x['confidence'])
