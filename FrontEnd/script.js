@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabs = Array.from(document.querySelectorAll('.tab'));
     const searchInput = document.getElementById('search');
     const refreshBtn = document.getElementById('refresh');
+    const liveDemoBtn = document.getElementById('live-demo-btn');
 
     const playerModal = document.getElementById('player-modal');
     const clipPlayer = document.getElementById('clip-player');
@@ -319,6 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     searchInput.addEventListener('input', debounce(renderList, 250));
     refreshBtn.addEventListener('click', loadAlerts);
+    liveDemoBtn.addEventListener('click', () => {
+        window.location.href = '/live-demo';
+    });
 
     // keyboard: Esc closes modals
     window.addEventListener('keydown', (e) => {

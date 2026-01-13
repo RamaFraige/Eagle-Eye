@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Eagle Eye - Live Demo</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../LOGO.jpg">
+    <style>
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .camera-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .camera-feed {
+            border: 3px solid #00bcd4;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4 / 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-feed img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .camera-status {
+            padding: 1rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #00ff00;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .camera-controls button {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .start-btn {
+            background: #00bcd4;
+            color: white;
+        }
+
+        .start-btn:hover:not(:disabled) {
+            background: #00a8c4;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+        }
+
+        .stop-btn {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .stop-btn:hover:not(:disabled) {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .back-btn {
+            background: #666;
+            color: white;
+        }
+
+        .back-btn:hover {
+            background: #777;
+        }
+
+        .alerts-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .alerts-section h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #00bcd4;
+        }
+
+        .alerts-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 400px;
+        }
+
+        .alert-notification {
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid;
+            background: #1a1a1a;
+            color: white;
+            animation: slideIn 0.3s ease;
+        }
+
+        .alert-notification.smoke {
+            border-left-color: #ff9800;
+            background-color: rgba(255, 152, 0, 0.1);
+        }
+
+        .alert-notification.weapon {
+            border-left-color: #f44336;
+            background-color: rgba(244, 67, 54, 0.1);
+        }
+
+        .alert-notification.fight {
+            border-left-color: #e91e63;
+            background-color: rgba(233, 30, 99, 0.1);
+        }
+
+        .alert-notification.entry {
+            border-left-color: #2196f3;
+            background-color: rgba(33, 150, 243, 0.1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-notification h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+
+        .alert-notification .alert-time {
+            font-size: 0.85rem;
+            opacity: 0.7;
+            margin-top: 0.5rem;
+        }
+
+        .no-alerts {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #999;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .demo-header {
+            background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .demo-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .demo-header p {
+            margin: 0.5rem 0 0 0;
+            opacity: 0.9;
+        }
+
+        .detection-info {
+            padding: 1rem;
+            background: #1a1a1a;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #00ff00;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            .demo-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <img src="../LOGO.jpg" alt="Eagle Eye logo" class="site-logo" />
+        <div class="site-title">
+            <h1>Eagle Eye Live Demo</h1>
+            <p>Real-Time Smoke Detection</p>
+        </div>
+    </header>
+
+    <div class="demo-header">
+        <h1>🎥 Live Camera Feed</h1>
+        <p>Smoke Detection in Real-Time</p>
+    </div>
+
+    <div class="demo-container">
+        <div class="camera-section">
+            <div class="camera-feed">
+                <img id="camera-stream" src="/video_feed" alt="Camera feed with smoke detection" />
+            </div>
+            <div class="detection-info" id="detection-info">
+                Waiting to start...
+            </div>
+            <div class="camera-status" id="camera-status">
+                Ready to start camera feed
+            </div>
+            <div class="camera-controls">
+                <button id="start-btn" class="start-btn">▶ Start Camera</button>
+                <button id="stop-btn" class="stop-btn" disabled>⏹ Stop Camera</button>
+                <button id="back-btn" class="back-btn">← Back to Dashboard</button>
+            </div>
+        </div>
+
+        <div class="alerts-section">
+            <h2>📊 Real-Time Alerts</h2>
+            <div class="alerts-list" id="alerts-container">
+                <div class="no-alerts">No alerts yet. Start the camera to begin detection.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const streamImg = document.getElementById('camera-stream');
+        const statusDiv = document.getElementById('camera-status');
+        const detectionInfo = document.getElementById('detection-info');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const backBtn = document.getElementById('back-btn');
+        const alertsContainer = document.getElementById('alerts-container');
+
+        let isCameraRunning = false;
+        let alertCheckInterval = null;
+        let lastAlertCount = 0;
+
+        function log(msg) {
+            const timestamp = new Date().toLocaleTimeString();
+            statusDiv.textContent += `[${timestamp}] ${msg}\n`;
+            statusDiv.scrollTop = statusDiv.scrollHeight;
+        }
+
+        function updateDetectionInfo(text) {
+            detectionInfo.textContent = text;
+        }
+
+        async function startCamera() {
+            log('Starting camera feed...');
+            updateDetectionInfo('🔴 Camera is LIVE - Detecting smoke...');
+            isCameraRunning = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            // Force refresh of the img stream
+            streamImg.src = '/video_feed?t=' + Date.now();
+
+            // Start polling for alerts
+            alertCheckInterval = setInterval(checkForAlerts, 1000);
+            
+            log('Camera feed active. Monitoring for smoke...');
+        }
+
+        async function stopCamera() {
+            log('Stopping camera feed...');
+            updateDetectionInfo('⚫ Camera stopped');
+            isCameraRunning = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            if (alertCheckInterval) {
+                clearInterval(alertCheckInterval);
+                alertCheckInterval = null;
+            }
+
+            log('Camera stopped.');
+        }
+
+        async function checkForAlerts() {
+            try {
+                const res = await fetch('/api/alerts');
+                const alerts = await res.json();
+                
+                // Only show smoke alerts in live demo
+                const smokeAlerts = alerts.filter(a => a.type === 'smoke');
+                
+                if (smokeAlerts.length > lastAlertCount) {
+                    // New alerts detected
+                    const newAlerts = smokeAlerts.slice(0, smokeAlerts.length - lastAlertCount);
+                    newAlerts.forEach(alert => {
+                        addAlertToUI(alert);
+                    });
+                }
+                
+                lastAlertCount = smokeAlerts.length;
+            } catch (err) {
+                console.error('Error checking alerts:', err);
+            }
+        }
+
+        function addAlertToUI(alert) {
+            // Remove "no alerts" message if present
+            const noAlerts = alertsContainer.querySelector('.no-alerts');
+            if (noAlerts) noAlerts.remove();
+
+            const alertEl = document.createElement('div');
+            alertEl.className = `alert-notification ${alert.type}`;
+            
+            const time = new Date(alert.time);
+            const timeStr = time.toLocaleTimeString();
+
+            alertEl.innerHTML = `
+                <h3>🚨 ${alert.title}</h3>
+                <p>${alert.message}</p>
+                <div class="alert-time">${timeStr}</div>
+            `;
+
+            alertsContainer.insertBefore(alertEl, alertsContainer.firstChild);
+
+            // Keep only last 10 alerts visible
+            const children = alertsContainer.querySelectorAll('.alert-notification');
+            if (children.length > 10) {
+                children[children.length - 1].remove();
+            }
+
+            log(`✅ SMOKE ALERT: ${alert.title}`);
+        }
+
+        startBtn.addEventListener('click', startCamera);
+        stopBtn.addEventListener('click', stopCamera);
+        backBtn.addEventListener('click', () => {
+            if (isCameraRunning) {
+                stopCamera();
+            }
+            window.location.href = '/dashboard';
+        });
+
+        // Initial setup
+        log('Live Demo initialized. Click "Start Camera" to begin.');
+    </script>
+</body>
+</html>

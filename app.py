@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory, jsonify, request, redirect, url_for, session
+from flask import Flask, send_from_directory, jsonify, request, redirect, url_for, session, Response
 import sqlite3
 import datetime
 import random
@@ -10,14 +10,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart 
 from twilio.rest import Client
 from ai_model import EagleEyeAI, FightingAIDetector
+import cv2
+import numpy as np
 
 app = Flask(__name__)
-app.secret_key = os.getenv('EAGLE_SECRET_KEY', 'dev-secret-key')
+app.secret_key = f'demo-secret-{int(time.time())}'  # New key each startup = fresh login
 
 # Temporary flag to bypass login for debugging UI.
 # Read from environment for easy toggling without code changes.
 # Login bypass is disabled by default; set EAGLE_SKIP_LOGIN=1 to enable.
-SKIP_LOGIN = os.getenv('EAGLE_SKIP_LOGIN', 'false').lower() in ('1', 'true', 'yes')
+SKIP_LOGIN = False  # Always require login for demo
 print(f"Login bypass (SKIP_LOGIN): {SKIP_LOGIN}")
 
 ALLOWED_USER = {
@@ -39,6 +41,9 @@ def init_db():
                   time TEXT NOT NULL,
                   clipUrl TEXT,
                   status TEXT DEFAULT 'active')''')
+    
+    # Clear all existing alerts for fresh start
+    c.execute('DELETE FROM alerts')
     
     conn.commit()
     conn.close()
@@ -484,13 +489,145 @@ def serve_clips(filename):
     # Serve real clips or annotated frames from the clips folder
     return send_from_directory('clips', filename)
 
+# Live Demo Routes
+@app.route('/live-demo')
+def serve_live_demo():
+    if not SKIP_LOGIN and not session.get('authenticated'):
+        return redirect(url_for('serve_index'))
+    return send_from_directory('FrontEnd', 'live-demo.html')
+
+# Global camera object for streaming
+camera_cap = None
+camera_lock = threading.Lock()
+
+@app.route('/video_feed')
+def video_feed():
+    """Stream video frames with smoke detection in MJPEG format"""
+    def generate():
+        global camera_cap
+        
+        with camera_lock:
+            # Initialize camera if not already done
+            if camera_cap is None:
+                camera_cap = cv2.VideoCapture(0)  # 0 = default laptop camera
+                if not camera_cap.isOpened():
+                    print("❌ Failed to open camera")
+                    return
+                
+                # Set camera resolution for better performance
+                camera_cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                camera_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                camera_cap.set(cv2.CAP_PROP_FPS, 30)
+                print("✅ Camera initialized")
+        
+        frame_count = 0
+        detection_cooldown = 0
+        
+        while True:
+            try:
+                with camera_lock:
+                    if camera_cap is None or not camera_cap.isOpened():
+                        break
+                    
+                    ret, frame = camera_cap.read()
+                
+                if not ret:
+                    break
+                
+                frame_count += 1
+                detection_cooldown = max(0, detection_cooldown - 1)
+                
+                # Run smoke detection every 5 frames to save CPU
+                if frame_count % 5 == 0 and ai_system.ai_detector and ai_system.ai_detector.has_smoke_model:
+                    try:
+                        # Run inference
+                        results = ai_system.ai_detector.smoke_model(frame, conf=0.5)
+                        
+                        # Draw bounding boxes for detections
+                        for result in results:
+                            boxes = result.boxes
+                            if boxes is not None:
+                                for box in boxes:
+                                    confidence = float(box.conf[0])
+                                    # Only trigger alert on high confidence (85% minimum)
+                                    if confidence >= 0.85 and detection_cooldown == 0:
+                                        # Save the detection frame
+                                        try:
+                                            annotated_dir = os.path.join('clips', 'annotated')
+                                            os.makedirs(annotated_dir, exist_ok=True)
+                                            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                                            frame_filename = f"live_smoke_{timestamp}_{random.randint(1000, 9999)}.jpg"
+                                            frame_path = os.path.join(annotated_dir, frame_filename)
+                                            cv2.imwrite(frame_path, frame)
+                                            clip_url = '/' + frame_path.replace('\\', '/').lstrip('/')
+                                        except Exception as e:
+                                            print(f"Error saving frame: {e}")
+                                            clip_url = ''
+                                        
+                                        # Create alert with frame image as clipUrl
+                                        alert_data = {
+                                            'type': 'smoke',
+                                            'title': 'Smoke Detected (Live)',
+                                            'message': f'Smoke detected in real-time camera feed (Confidence: {confidence:.0%})',
+                                            'time': datetime.datetime.now().isoformat(),
+                                            'clipUrl': clip_url,
+                                            'confidence': confidence
+                                        }
+                                        alert_system.save_alert(alert_data)
+                                        print(f"🔔 Live Alert: {alert_data['title']} ({confidence:.0%}) - Frame: {clip_url}")
+                                        detection_cooldown = 30  # Wait 30 frames before next alert
+                                    
+                                    # Draw box on frame
+                                    x1, y1, x2, y2 = box.xyxy[0]
+                                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                                    color = (0, 165, 255) if confidence >= 0.70 else (0, 255, 255)
+                                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                                    label = f'Smoke {confidence:.0%}'
+                                    cv2.putText(frame, label, (x1, y1 - 10),
+                                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+                    except Exception as e:
+                        print(f"Error during detection: {e}")
+                
+                # Add FPS counter
+                cv2.putText(frame, f'Frame: {frame_count}', (10, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 0), 2)
+                
+                # Encode frame to JPEG
+                ret, buffer = cv2.imencode('.jpg', frame)
+                frame_bytes = buffer.tobytes()
+                
+                # Yield frame in MJPEG format
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n'
+                       b'Content-Length: ' + str(len(frame_bytes)).encode() + b'\r\n\r\n'
+                       + frame_bytes + b'\r\n')
+                
+            except Exception as e:
+                print(f"Error in video stream: {e}")
+                break
+    
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/api/stop_camera', methods=['POST'])
+def stop_camera():
+    """Stop the camera stream"""
+    global camera_cap
+    
+    with camera_lock:
+        if camera_cap is not None:
+            camera_cap.release()
+            camera_cap = None
+            print("📹 Camera stopped")
+    
+    return jsonify({'success': True})
+
 if __name__ == '__main__':
-    # Add some initial sample data
+    # Add some initial sample data with unique clipUrls so they don't get deduplicated
     sample_data = [
-        {'type': 'weapon', 'title': 'Weapon detected', 'message': 'Possible weapon seen near gate', 'time': datetime.datetime.now().isoformat(), 'clipUrl': ''},
-        {'type': 'fight', 'title': 'Fight detected', 'message': 'Physical altercation in cafeteria', 'time': datetime.datetime.now().isoformat(), 'clipUrl': ''},
-        {'type': 'smoke', 'title': 'Smoke detected', 'message': 'Smoke in parking area', 'time': datetime.datetime.now().isoformat(), 'clipUrl': ''},
-        {'type': 'entry', 'title': 'Unauthorized entry', 'message': 'Door breach at back entrance', 'time': datetime.datetime.now().isoformat(), 'clipUrl': ''},
+        {'type': 'weapon', 'title': 'Weapon detected', 'message': 'Possible weapon seen near gate', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_weapon_{int(time.time())}'},
+        {'type': 'fight', 'title': 'Fight detected', 'message': 'Physical altercation in cafeteria', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_fight_{int(time.time())}'},
+        {'type': 'smoke', 'title': 'Smoke detected', 'message': 'Smoke in parking area', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_smoke_{int(time.time())}'},
+        {'type': 'entry', 'title': 'Unauthorized entry', 'message': 'Door breach at back entrance', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_entry_{int(time.time())}'},
     ]
     
     for alert in sample_data:
