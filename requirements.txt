@@ -1,0 +1,30 @@
+# Eagle Eye Project - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Web Framework
+Flask==2.3.3
+
+# Computer Vision & Image Processing
+opencv-python==4.8.1.78
+opencv-contrib-python==4.8.1.78
+numpy==1.24.3
+Pillow==10.0.0
+
+# AI & Machine Learning
+ultralytics==8.0.207  # YOLOv8 framework
+torch==2.0.1  # PyTorch (required by ultralytics)
+torchvision==0.15.2  # Vision utilities
+
+# Notifications & Communications
+twilio==8.10.0  # SMS notifications
+python-dotenv==1.0.0  # Environment variable management
+
+# Database
+# SQLite is included with Python, no need to install
+
+# Optional: Performance & Production
+gunicorn==21.2.0  # WSGI server for production (not needed for development)
+python-dateutil==2.8.2  # Date utilities
+
+# Optional: GPU Support (uncomment if using NVIDIA GPU)
+# torch-cuda==11.8  # CUDA support for PyTorch (install separately as needed)

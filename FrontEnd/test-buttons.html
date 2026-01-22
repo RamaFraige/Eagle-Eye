@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eagle Eye - Test Control Panel</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../LOGO.jpg">
+    <style>
+        .test-panel {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #0a0e27;
+        }
+        
+        .test-panel h1 {
+            color: #00bcd4;
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+        
+        .panel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .panel-section {
+            background: #111827;
+            border: 2px solid #00bcd4;
+            border-radius: 8px;
+            padding: 2rem;
+        }
+        
+        .panel-section h2 {
+            color: #00bcd4;
+            font-size: 1.3rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #00bcd4;
+            padding-bottom: 1rem;
+        }
+        
+        .test-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .test-btn {
+            padding: 1rem;
+            font-size: 0.95rem;
+            border: 2px solid;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: white;
+        }
+        
+        .test-btn.smoke {
+            border-color: #ff9800;
+            background: rgba(255, 152, 0, 0.15);
+        }
+        
+        .test-btn.smoke:hover:not(:disabled) {
+            background: rgba(255, 152, 0, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        
+        .test-btn.weapon {
+            border-color: #f44336;
+            background: rgba(244, 67, 54, 0.15);
+        }
+        
+        .test-btn.weapon:hover:not(:disabled) {
+            background: rgba(244, 67, 54, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+        }
+        
+        .test-btn.fight {
+            border-color: #e91e63;
+            background: rgba(233, 30, 99, 0.15);
+        }
+        
+        .test-btn.fight:hover:not(:disabled) {
+            background: rgba(233, 30, 99, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(233, 30, 99, 0.3);
+        }
+        
+        .test-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 1rem;
+            background: rgba(0, 188, 212, 0.15);
+            border: 2px dashed #00bcd4;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #00bcd4;
+            font-weight: 600;
+        }
+        
+        .file-input-label:hover {
+            background: rgba(0, 188, 212, 0.25);
+            border-color: #00bcd4;
+        }
+        
+        .file-name {
+            color: #aaa;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+        
+        .upload-btn {
+            padding: 0.75rem 1.5rem;
+            background: #00bcd4;
+            color: #0a0e27;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        .upload-btn:hover:not(:disabled) {
+            background: #00a8c4;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+        }
+        
+        .upload-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status-box {
+            background: #1a1a1a;
+            border-radius: 6px;
+            padding: 1.5rem;
+            border-left: 4px solid #00bcd4;
+            min-height: 120px;
+        }
+        
+        .status-box h3 {
+            color: #00bcd4;
+            margin-top: 0;
+            font-size: 1rem;
+        }
+        
+        .status-message {
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+        
+        .loading {
+            display: inline-block;
+            color: #fff;
+        }
+        
+        .loading::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        .success {
+            color: #4caf50;
+        }
+        
+        .warning {
+            color: #ff9800;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        .back-link {
+            display: inline-block;
+            color: #00bcd4;
+            text-decoration: none;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            border: 2px solid #00bcd4;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .back-link:hover {
+            background: #00bcd4;
+            color: #0a0e27;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body style="background: #0a0e27; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div class="test-panel">
+        <h1>🎬 Eagle Eye - Test Control</h1>
+        
+        <div class="panel-grid">
+            <!-- Preset Videos Section -->
+            <div class="panel-section">
+                <h2>📹 Preset Videos</h2>
+                <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 1rem;">Test with pre-recorded sample videos</p>
+                <div class="test-buttons">
+                    <button class="test-btn smoke" onclick="testDetector('smoke')" id="smokeBtn">
+                        🔥 Smoke
+                    </button>
+                    <button class="test-btn weapon" onclick="testDetector('weapon')" id="weaponBtn">
+                        🔫 Weapon
+                    </button>
+                    <button class="test-btn fight" onclick="testDetector('fight')" id="fightBtn">
+                        👊 Fight
+                    </button>
+                </div>
+                <div class="status-box">
+                    <h3>Status</h3>
+                    <div class="status-message" id="statusMessage">Ready to test preset videos</div>
+                </div>
+            </div>
+            
+            <!-- Upload Video Section -->
+            <div class="panel-section">
+                <h2>📤 Upload Video</h2>
+                <p style="color: #aaa; font-size: 0.9rem; margin-bottom: 1rem;">Upload custom video for testing</p>
+                <div class="upload-section">
+                    <div class="file-input-wrapper">
+                        <label class="file-input-label" for="videoFile">
+                            Choose Video File
+                            <div class="file-name" id="fileName">(MP4, AVI, MOV)</div>
+                        </label>
+                        <input type="file" id="videoFile" accept="video/*" onchange="updateFileName(this)">
+                    </div>
+                    <button class="upload-btn" onclick="uploadAndTest()" id="uploadBtn">
+                        Process Video
+                    </button>
+                </div>
+                <div class="status-box">
+                    <h3>Upload Status</h3>
+                    <div class="status-message" id="uploadStatusMessage">Ready to upload</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <a href="/dashboard" class="back-link">← Dashboard</a>
+        </div>
+    </div>
+    
+    <script>
+        function updateFileName(input) {
+            const fileName = input.files[0]?.name || '(No file selected)';
+            document.getElementById('fileName').textContent = fileName;
+        }
+        
+        async function testDetector(type) {
+            const btn = document.getElementById(type + 'Btn');
+            const statusMsg = document.getElementById('statusMessage');
+            
+            btn.disabled = true;
+            statusMsg.innerHTML = `<span class="loading">Testing ${type.toUpperCase()} detector</span>`;
+            
+            try {
+                const response = await fetch(`/api/test_detection/${type}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const conf = Math.round(data.alert.confidence * 100);
+                    statusMsg.innerHTML = `<span class="success">✅ SUCCESS</span>
+
+Type: ${data.alert.type.toUpperCase()}
+Title: ${data.alert.title}
+Confidence: ${conf}%
+
+✓ Alert added to dashboard`;
+                } else {
+                    statusMsg.innerHTML = `<span class="warning">⚠️  NO DETECTION</span>
+
+${data.message || 'No threats detected'}
+
+(This is normal if the video has no target)`;
+                }
+            } catch (error) {
+                statusMsg.innerHTML = `<span class="error">❌ ERROR</span>
+
+${error.message}
+
+Check browser console for details`;
+                console.error(error);
+            } finally {
+                setTimeout(() => { btn.disabled = false; }, 2000);
+            }
+        }
+        
+        async function uploadAndTest() {
+            const fileInput = document.getElementById('videoFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const statusMsg = document.getElementById('uploadStatusMessage');
+            
+            if (!fileInput.files[0]) {
+                statusMsg.innerHTML = `<span class="error">❌ ERROR</span>\n\nPlease select a video file first`;
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('video', file);
+            
+            uploadBtn.disabled = true;
+            statusMsg.innerHTML = `<span class="loading">Uploading and processing video</span>`;
+            
+            try {
+                const response = await fetch('/api/test_upload_video', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const conf = Math.round(data.alert.confidence * 100);
+                    statusMsg.innerHTML = `<span class="success">✅ DETECTION FOUND</span>
+
+Type: ${data.alert.type.toUpperCase()}
+Title: ${data.alert.title}
+Confidence: ${conf}%
+
+✓ Alert added to dashboard
+✓ Refresh dashboard to see it`;
+                    fileInput.value = '';
+                    document.getElementById('fileName').textContent = '(No file selected)';
+                } else {
+                    statusMsg.innerHTML = `<span class="warning">⚠️  NO DETECTION</span>
+
+${data.message || 'No threats detected in video'}
+
+(Upload a video with smoke, weapon, or fight)`;
+                }
+            } catch (error) {
+                statusMsg.innerHTML = `<span class="error">❌ ERROR</span>
+
+${error.message}
+
+File too large or unsupported format?`;
+                console.error(error);
+            } finally {
+                setTimeout(() => { uploadBtn.disabled = false; }, 2000);
+            }
+        }
+    </script>
+</body>
+</html>

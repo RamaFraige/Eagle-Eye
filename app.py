@@ -103,56 +103,83 @@ class RealAISystem:
             action_model_path='clips/weights/action.pth'
         )
         print("✅ Fighting AI System initialized (lazy-loading enabled)!")
-    
-    def detect_anomalies(self):
-        """
-        Run real detection on video feed.
-        Checks all AI detectors (smoke, weapon, fighting).
-        Fighting models load on first detection (lazy loading).
-        Uses 3 specific sample videos for testing.
-        Return detection dict if found, None otherwise.
-        """
-        if self.ai_detector is None and self.fighting_detector is None:
-            return None
         
-        # Use specific sample videos (one from each category)
-        sample_videos = [
+        # Testing mode: cycle through all videos deterministically
+        self.test_mode = False
+        self.test_video_index = 0
+        self.test_videos = [
             'clips/smoking sample_3.mp4',
             'clips/guns sample_3.mp4',
             'clips/fight sample_3.mp4'
         ]
+    
+    def detect_anomalies(self, force_test_video=None):
+        """
+        Run real detection on video feed.
         
-        if random.random() < 0.3:  # 30% chance of checking a video
-            video_path = random.choice(sample_videos)
-            
-            # Verify file exists before processing
-            if not os.path.exists(video_path):
-                print(f" Video not found: {video_path}")
+        Args:
+            force_test_video: If provided, test this specific video instead of random selection
+                            Can be 'smoke', 'weapon', 'fight', or None for auto-random
+        
+        Returns: detection dict if found, None otherwise
+        """
+        if self.ai_detector is None and self.fighting_detector is None:
+            return None
+        
+        # Select video based on mode
+        if force_test_video:
+            # Manual testing mode: test specific video
+            video_map = {
+                'smoke': 'clips/smoking sample_3.mp4',
+                'weapon': 'clips/guns sample_3.mp4',
+                'fight': 'clips/fight sample_3.mp4'
+            }
+            video_path = video_map.get(force_test_video)
+            if not video_path:
+                print(f"❌ Unknown test video: {force_test_video}")
                 return None
-            
-            # Try smoke/weapon detection first
-            if self.ai_detector:
-                detection = self.ai_detector.detect_in_video(video_path)
-                if detection:
-                    image_path = detection.get('image_path')
-                    alert_dict = self.create_alert_dict(
-                        detection['type'],
-                        detection['confidence'],
-                        image_path or video_path
-                    )
-                    return alert_dict
-            
-            # Try fighting detection (models lazy-load on first call)
-            if self.fighting_detector:
-                detection = self.fighting_detector.detect_in_video(video_path)
-                if detection:
-                    image_path = detection.get('image_path')
-                    alert_dict = self.create_alert_dict(
-                        detection['type'],
-                        detection['confidence'],
-                        image_path or video_path
-                    )
-                    return alert_dict
+        else:
+            # Auto mode: random selection with 30% chance
+            if random.random() < 0.3:
+                video_path = random.choice(self.test_videos)
+            else:
+                return None
+        
+        # Verify file exists before processing
+        if not os.path.exists(video_path):
+            print(f"❌ Video not found: {video_path}")
+            return None
+        
+        # Try smoke/weapon detection first
+        if self.ai_detector:
+            detection = self.ai_detector.detect_in_video(video_path)
+            if detection:
+                image_path = detection.get('image_path')
+                alert_dict = self.create_alert_dict(
+                    detection['type'],
+                    detection['confidence'],
+                    image_path or video_path
+                )
+                print(f"✅ DETECTION SUCCESSFUL: {alert_dict['type'].upper()} - Confidence: {detection['confidence']:.0%}")
+                return alert_dict
+            else:
+                print(f"⚠️  Smoke/Weapon detection: No threats detected in {video_path}")
+        
+        # Only try fighting detection if smoke/weapon detection found nothing
+        if self.fighting_detector:
+            print(f"ℹ️  Checking fighting detector on {video_path}...")
+            detection = self.fighting_detector.detect_in_video(video_path)
+            if detection:
+                image_path = detection.get('image_path')
+                alert_dict = self.create_alert_dict(
+                    detection['type'],
+                    detection['confidence'],
+                    image_path or video_path
+                )
+                print(f"✅ DETECTION SUCCESSFUL: {alert_dict['type'].upper()} - Confidence: {detection['confidence']:.0%}")
+                return alert_dict
+            else:
+                print(f"⚠️  Fighting detection: No threats detected in {video_path}")
         
         return None
     
@@ -330,12 +357,146 @@ def check_detection():
         return jsonify({'alert': new_alert})
     return jsonify({'alert': None})
 
+@app.route('/api/test_detection/<video_type>', methods=['GET'])
+def test_detection(video_type):
+    """
+    Manual test endpoint: Force test a specific video type
+    Usage: GET /api/test_detection/smoke
+           GET /api/test_detection/weapon
+           GET /api/test_detection/fight
+    
+    Useful for demo/presentation: Click a button to test each detector
+    """
+    valid_types = ['smoke', 'weapon', 'fight']
+    if video_type.lower() not in valid_types:
+        return jsonify({
+            'success': False,
+            'error': f'Invalid type. Use: {", ".join(valid_types)}'
+        }), 400
+    
+    print(f"\n🎬 MANUAL TEST: Testing {video_type.upper()} detector...")
+    detection = ai_system.detect_anomalies(force_test_video=video_type.lower())
+    
+    if detection:
+        # Save the alert to database
+        alert_system.save_alert(detection)
+        print(f"✅ Test Alert Created: {detection['type'].upper()}")
+        return jsonify({
+            'success': True,
+            'alert': detection,
+            'message': f'{video_type.upper()} alert created successfully!'
+        })
+    else:
+        return jsonify({
+            'success': False,
+            'message': f'No {video_type} detected in test video'
+        }), 404
+
+@app.route('/api/test_upload_video', methods=['POST'])
+def test_upload_video():
+    """
+    Upload and test a custom video file
+    Processes video through all detectors (smoke, weapon, fighting)
+    Creates alert only if threat detected
+    """
+    if 'video' not in request.files:
+        return jsonify({
+            'success': False,
+            'message': 'No video file provided'
+        }), 400
+    
+    file = request.files['video']
+    if file.filename == '':
+        return jsonify({
+            'success': False,
+            'message': 'No file selected'
+        }), 400
+    
+    # Validate file type
+    allowed_extensions = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'message': f'Unsupported format. Allowed: {", ".join(allowed_extensions)}'
+        }), 400
+    
+    # Save uploaded file temporarily
+    temp_dir = os.path.join('clips', 'uploads')
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    temp_path = os.path.join(temp_dir, f"{int(time.time())}_{file.filename}")
+    file.save(temp_path)
+    
+    print(f"\n📤 UPLOAD TEST: Processing uploaded video: {file.filename}")
+    
+    try:
+        detection = None
+        
+        # Try smoke/weapon detection first
+        if ai_system.ai_detector:
+            print(f"ℹ️  Testing smoke/weapon detector on uploaded video...")
+            detection = ai_system.ai_detector.detect_in_video(temp_path)
+            if detection:
+                print(f"✅ {detection['type'].upper()} detected in uploaded video!")
+        
+        # Only try fighting detection if smoke/weapon found nothing
+        if not detection and ai_system.fighting_detector:
+            print(f"ℹ️  Testing fighting detector on uploaded video...")
+            detection = ai_system.fighting_detector.detect_in_video(temp_path)
+            if detection:
+                print(f"✅ {detection['type'].upper()} detected in uploaded video!")
+        
+        # If detection found, create alert
+        if detection:
+            image_path = detection.get('image_path')
+            alert_dict = {
+                'type': detection['type'],
+                'title': f'{detection["type"].capitalize()} detected (Uploaded)',
+                'message': f'Detected in uploaded video: {file.filename} (Confidence: {detection["confidence"]:.0%})',
+                'time': datetime.datetime.now().isoformat(),
+                'clipUrl': '/' + (image_path or temp_path).replace('\\', '/').lstrip('/'),
+                'confidence': detection['confidence']
+            }
+            alert_system.save_alert(alert_dict)
+            print(f"✅ Upload Alert Created: {alert_dict['type'].upper()}")
+            
+            return jsonify({
+                'success': True,
+                'alert': alert_dict,
+                'message': f'{detection["type"].upper()} threat detected in uploaded video!'
+            })
+        else:
+            # No detection - don't create alert
+            print(f"⚠️  No threats detected in uploaded video")
+            return jsonify({
+                'success': False,
+                'message': 'No threats detected in this video. Upload a video containing smoke, weapons, or fights.'
+            }), 404
+    
+    except Exception as e:
+        print(f"❌ Error processing uploaded video: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error processing video: {str(e)}'
+        }), 500
+    
+    finally:
+        # Clean up temp file
+        try:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                print(f"🗑️  Cleaned up temp file")
+        except:
+            pass
+
 @app.route('/api/feedback', methods=['POST'])
 def handle_feedback():
     """Send feedback to support team via email"""
     data = request.get_json()
     alert_id = data.get('alertId')
     message = data.get('message')
+    clip_url = data.get('clipUrl', '')  # Get clip URL from frontend
     user_data = data.get('userData', {})
     
     print(f"📧 Sending feedback for alert {alert_id} from user {user_data.get('username', 'Unknown')}")
@@ -362,31 +523,39 @@ def handle_feedback():
         SENDER_PASSWORD = 'nlbp fkrm jkqj hakk'  # ← Replace with Gmail App Password
         RECEIVER_EMAIL = 'eagleeye.suppteam@gmail.com'
         
-        # Create message
+        # Create simple message
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = RECEIVER_EMAIL
-        msg['Subject'] = f'Eagle Eye Support Request - Alert {alert_id}'
+        msg['Subject'] = f'Eagle Eye Support - Alert #{alert_id} ({alert_details["type"].upper() if alert_details else "Unknown"})'
         
-        body = f"""
-New support request from Eagle Eye system:
+        # Simple email body
+        email_body = f"""
+New support request from Eagle Eye system.
 
-USER INFORMATION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+USER INFORMATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Name: {user_data.get('username', 'Not provided')}
 Email: {user_data.get('email', 'Not provided')}
 Phone: {user_data.get('phone', 'Not provided')}
 
-ALERT DETAILS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ALERT DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Alert ID: {alert_id}
-Alert Type: {alert_details['type'] if alert_details else 'Unknown'}
-Alert Description: {alert_details['message'] if alert_details else 'N/A'}
+Alert Type: {alert_details['type'].upper() if alert_details else 'Unknown'}
+Description: {alert_details['message'] if alert_details else 'N/A'}
 
-USER MESSAGE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+USER MESSAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 {message}
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Please review this case promptly.
 """
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(email_body, 'plain'))
         
         # Send email
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -496,6 +665,13 @@ def serve_live_demo():
         return redirect(url_for('serve_index'))
     return send_from_directory('FrontEnd', 'live-demo.html')
 
+@app.route('/test-buttons')
+def serve_test_buttons():
+    """Control panel for manual detector testing"""
+    if not SKIP_LOGIN and not session.get('authenticated'):
+        return redirect(url_for('serve_index'))
+    return send_from_directory('FrontEnd', 'test-buttons.html')
+
 # Global camera object for streaming
 camera_cap = None
 camera_lock = threading.Lock()
@@ -522,6 +698,8 @@ def video_feed():
         
         frame_count = 0
         detection_cooldown = 0
+        last_alert_time = {}  # Track last alert time by type to prevent rapid duplicates
+        MIN_ALERT_INTERVAL = 30  # Minimum seconds between alerts of same type
         
         while True:
             try:
@@ -549,8 +727,14 @@ def video_feed():
                             if boxes is not None:
                                 for box in boxes:
                                     confidence = float(box.conf[0])
-                                    # Only trigger alert on high confidence (85% minimum)
-                                    if confidence >= 0.85 and detection_cooldown == 0:
+                                    # LOWERED threshold from 0.92 to 0.90 for live camera
+                                    # Allows 90%+ confidence to trigger alerts
+                                    current_time = time.time()
+                                    time_since_last_alert = current_time - last_alert_time.get('smoke', 0)
+                                    
+                                    if (confidence >= 0.90 and 
+                                        detection_cooldown == 0 and 
+                                        time_since_last_alert >= MIN_ALERT_INTERVAL):
                                         # Save the detection frame
                                         try:
                                             annotated_dir = os.path.join('clips', 'annotated')
@@ -575,7 +759,8 @@ def video_feed():
                                         }
                                         alert_system.save_alert(alert_data)
                                         print(f"🔔 Live Alert: {alert_data['title']} ({confidence:.0%}) - Frame: {clip_url}")
-                                        detection_cooldown = 30  # Wait 30 frames before next alert
+                                        detection_cooldown = 150  # Wait 150 frames (~25 seconds) before next alert
+                                        last_alert_time['smoke'] = current_time  # Update last alert timestamp
                                     
                                     # Draw box on frame
                                     x1, y1, x2, y2 = box.xyxy[0]
@@ -622,24 +807,24 @@ def stop_camera():
     return jsonify({'success': True})
 
 if __name__ == '__main__':
-    # Add some initial sample data with unique clipUrls so they don't get deduplicated
-    sample_data = [
-        {'type': 'weapon', 'title': 'Weapon detected', 'message': 'Possible weapon seen near gate', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_weapon_{int(time.time())}'},
-        {'type': 'fight', 'title': 'Fight detected', 'message': 'Physical altercation in cafeteria', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_fight_{int(time.time())}'},
-        {'type': 'smoke', 'title': 'Smoke detected', 'message': 'Smoke in parking area', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_smoke_{int(time.time())}'},
-        {'type': 'entry', 'title': 'Unauthorized entry', 'message': 'Door breach at back entrance', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_entry_{int(time.time())}'},
-    ]
-    
-    for alert in sample_data:
-        alert_system.save_alert(alert)
+    # Commented out: Sample data for initial testing (DummyAI Alerts)
+    # sample_data = [
+    #     {'type': 'weapon', 'title': 'Weapon detected', 'message': 'Possible weapon seen near gate', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_weapon_{int(time.time())}'},
+    #     {'type': 'fight', 'title': 'Fight detected', 'message': 'Physical altercation in cafeteria', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_fight_{int(time.time())}'},
+    #     {'type': 'smoke', 'title': 'Smoke detected', 'message': 'Smoke in parking area', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_smoke_{int(time.time())}'},
+    #     {'type': 'entry', 'title': 'Unauthorized entry', 'message': 'Door breach at back entrance', 'time': datetime.datetime.now().isoformat(), 'clipUrl': f'sample_entry_{int(time.time())}'},
+    # ]
+    # for alert in sample_data:
+    #     alert_system.save_alert(alert)
     
     print("🚀 Eagle Eye System Starting...")
-    print("📊 Database initialized with sample data")
+    print("📊 Database initialized (no sample data)")
     print("📁 Serving from FrontEnd folder")
     print("🌐 Open: http://127.0.0.1:5000")
     print("⏹️  Press Ctrl+C to stop")
     print("")
-    print("If you still see 404 errors, try: http://127.0.0.1:5000/")
+    print("Dashboard will be empty until detections are triggered.")
+    print("Use /test-buttons to manually test detectors.")
     
     app.run(debug=True, host='127.0.0.1', port=5000)
 

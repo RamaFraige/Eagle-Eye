@@ -70,8 +70,14 @@ class EagleEyeAI:
                             class_name = 'unknown'
                         alert_type = self.map_class_to_alert_type(class_name)
 
-                        # Higher threshold for smoke to reduce false positives
-                        min_confidence = 0.80 if alert_type == 'smoke' else confidence_threshold
+                        # Use different thresholds for different alert types:
+                        # - Smoke: 0.75 for video files (0.92 only for live camera to reduce false positives from faces/objects)
+                        # - Weapons: 0.50 (balanced sensitivity)
+                        # - Other: use provided confidence_threshold
+                        if alert_type == 'smoke':
+                            min_confidence = 0.75  # More lenient for pre-recorded videos
+                        else:
+                            min_confidence = confidence_threshold
                         
                         if alert_type and confidence >= min_confidence:
                             detections.append({

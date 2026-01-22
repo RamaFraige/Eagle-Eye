@@ -287,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ 
                     alertId: currentAlert.id, 
                     message: text,
+                    clipUrl: currentAlert.clipUrl,  // Include alert clip for context
                     userData: userData  // Include user information
                 })
             });
