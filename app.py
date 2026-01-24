@@ -82,7 +82,7 @@ class DummyAISystem:
             }
         return None
     
-# REAL AI SYSTEM - VER 1
+# REAL AI SYSTEM 
 
 class RealAISystem:
     def __init__(self):
